@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 
 type Product = { id: string; name: string; purchase: number; selling: number; stock: number; sku?: string; category?: string; gstRate?: number; hsn?: string; };
-type Supplier = { id: string; name: string };
-type Purchase = { id: string; supplier: string; invoice: string; date: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number; taxableValue?: number; gstRate?: number; taxAmount?: number; cgst?: number; sgst?: number; utgst?: number; igst?: number; placeOfSupply?: string };
+type Supplier = { id: string; name: string; gstin?: string; address?: string };
+type Purchase = { id: string; supplier: string; invoice: string; date: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number; taxableValue?: number; gstRate?: number; taxAmount?: number; cgst?: number; sgst?: number; utgst?: number; igst?: number; placeOfSupply?: string; hsn?: string; supplierGstin?: string; supplierAddress?: string };
 
 export default function Purchases() {
   const [products,setProducts] = useState<Product[]>([]);
@@ -57,8 +57,11 @@ const total = taxableValue + taxAmount;
     }
     if(!invoice.trim()) { alert('Enter supplier invoice number.'); return; }
 
+    const supplierDetails = suppliers.find(x =>
+      x.name.trim().toLowerCase() === supplier.trim().toLowerCase()
+    );
     const updatedProducts=products.map(p=>p.id===productId?{...p,stock:p.stock+qty,purchase:rate}:p);
-    const record:Purchase={id:Date.now().toString(),supplier,invoice:invoice.trim(),date,product:selected.name,qty,rate,total,paid,balance:total-paid,taxableValue,gstRate,taxAmount,cgst,sgst,utgst,igst,placeOfSupply:applyGST?placeOfSupply:''};
+    const record:Purchase={id:Date.now().toString(),supplier,invoice:invoice.trim(),date,product:selected.name,qty,rate,total,paid,balance:total-paid,taxableValue,gstRate,taxAmount,cgst,sgst,utgst,igst,placeOfSupply:applyGST?placeOfSupply:'',hsn:selected.hsn||'',supplierGstin:supplierDetails?.gstin||'',supplierAddress:supplierDetails?.address||''};
     const updatedItems=[record,...items];
 
     localStorage.setItem('smartledger-products',JSON.stringify(updatedProducts));

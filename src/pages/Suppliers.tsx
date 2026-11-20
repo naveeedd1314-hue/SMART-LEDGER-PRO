@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 
-type Supplier = { id: string; name: string; phone: string; address: string; opening: number };
+type Supplier = { id: string; name: string; phone: string; address: string; opening: number; gstin?: string };
 
 export default function Suppliers() {
   const [items, setItems] = useState<Supplier[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [gstin, setGstin] = useState('');
   const [address, setAddress] = useState('');
   const [opening, setOpening] = useState(0);
   const [search, setSearch] = useState('');
@@ -16,10 +17,10 @@ export default function Suppliers() {
 
   function save() {
     if (!name.trim()) return alert('Enter supplier name.');
-    const next = [{ id: crypto.randomUUID(), name: name.trim(), phone, address, opening }, ...items];
+    const next = [{ id: crypto.randomUUID(), name: name.trim(), phone, gstin: gstin.trim(), address, opening }, ...items];
     setItems(next);
     localStorage.setItem('smartledger-pro-suppliers', JSON.stringify(next));
-    setName(''); setPhone(''); setAddress(''); setOpening(0);
+    setName(''); setPhone(''); setGstin(''); setAddress(''); setOpening(0);
   }
 
   const filtered = items.filter(x => `${x.name} ${x.phone} ${x.address}`.toLowerCase().includes(search.toLowerCase()));
@@ -32,6 +33,7 @@ export default function Suppliers() {
       <div className="grid gap-3 sm:grid-cols-2">
         <input className="rounded-lg border p-3" placeholder="Supplier name *" value={name} onChange={e => setName(e.target.value)} />
         <input className="rounded-lg border p-3" placeholder="Phone number" value={phone} onChange={e => setPhone(e.target.value)} />
+        <input className="rounded-lg border p-3" placeholder="Supplier GSTIN (optional)" value={gstin} onChange={e => setGstin(e.target.value.toUpperCase())} maxLength={15} />
         <input className="rounded-lg border p-3" placeholder="Address" value={address} onChange={e => setAddress(e.target.value)} />
         <input className="rounded-lg border p-3" type="number" placeholder="Opening payable" value={opening} onChange={e => setOpening(Number(e.target.value))} />
       </div>

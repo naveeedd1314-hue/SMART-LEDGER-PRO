@@ -16,6 +16,8 @@ type InvoiceRecord = {
   supplier?: string;
   customerGstin?: string;
   customerAddress?: string;
+  supplierGstin?: string;
+  supplierAddress?: string;
   hsn?: string;
   product: string;
   qty: number;
@@ -92,7 +94,8 @@ export function downloadInvoicePdf(
   const partyLines = type === 'sales'
     ? [record.customer || 'Walk-in Customer', record.customerAddress || '',
        record.customerGstin ? `GSTIN: ${record.customerGstin}` : '']
-    : [record.supplier || '-'];
+    : [record.supplier || '-', record.supplierAddress || '',
+       record.supplierGstin ? `GSTIN: ${record.supplierGstin}` : ''];
 
   partyLines.filter(Boolean).forEach(line => {
     const wrapped = doc.splitTextToSize(String(line), pageWidth - 30);
