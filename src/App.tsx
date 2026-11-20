@@ -11,6 +11,7 @@ import Returns from './pages/Returns'
 import Purchases from './pages/Purchases'
 import Inventory from './pages/Inventory'
 import { useState } from 'react'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 import {
   LayoutDashboard, ShoppingCart, ShoppingBag, Package,
   Users, Truck, Wallet, ChartNoAxesCombined, FileText,
@@ -43,16 +44,88 @@ const navigation = [
   ]},
 ]
 
-const metrics = [
-  { label: 'Total Sales', value: '₹0.00', change: 'Sales revenue', icon: ShoppingCart },
-  { label: 'Total Purchases', value: '₹0.00', change: 'Purchase value', icon: ShoppingBag },
-  { label: 'To Collect', value: '₹0.00', change: 'Customer receivables', icon: ArrowDownRight },
-  { label: 'To Pay', value: '₹0.00', change: 'Supplier payables', icon: ArrowUpRight },
-]
+
+function readData(key: string): any[] {
+  try {
+    const data = JSON.parse(localStorage.getItem(key) || '[]')
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
+function getDashboardMetrics() {
+  const sales = readData('smartledger-pro-sales')
+  const purchases = readData('smartledger-pro-purchases')
+  const customers = readData('smartledger-pro-customers')
+  const suppliers = readData('smartledger-pro-suppliers')
+  const payments = readData('smartledger-pro-payments')
+
+  const sum = (items: any[], field: string) =>
+    items.reduce((total, item) => total + (Number(item[field]) || 0), 0)
+
+  const money = (value: number) =>
+    `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+  const collected = sum(payments.filter(x => x.type === 'Customer Receipt'), 'amount')
+  const supplierPaid = sum(payments.filter(x => x.type === 'Supplier Payment'), 'amount')
+
+  return [
+    { label: 'Total Sales', value: money(sum(sales, 'total')), change: 'Sales revenue', icon: ShoppingCart },
+    { label: 'Total Purchases', value: money(sum(purchases, 'total')), change: 'Purchase value', icon: ShoppingBag },
+    { label: 'To Collect', value: money(Math.max(0, sum(customers, 'opening') + sum(sales, 'balance') - collected)), change: 'Customer receivables', icon: ArrowDownRight },
+    { label: 'To Pay', value: money(Math.max(0, sum(suppliers, 'opening') + sum(purchases, 'balance') - supplierPaid)), change: 'Supplier payables', icon: ArrowUpRight },
+  ]
+}
+
+
+function getRecentTransactions() {
+  const records = [
+    ...readData('smartledger-pro-sales').map(x => ({
+      date: x.date, title: `Sale — ${x.customer || x.product || 'Customer'}`,
+      detail: x.invoice || 'Sales invoice', amount: Number(x.total) || 0, kind: 'Sales'
+    })),
+    ...readData('smartledger-pro-purchases').map(x => ({
+      date: x.date, title: `Purchase — ${x.supplier || x.product || 'Supplier'}`,
+      detail: x.invoice || 'Purchase invoice', amount: Number(x.total) || 0, kind: 'Purchase'
+    })),
+    ...readData('smartledger-pro-expenses').map(x => ({
+      date: x.date, title: x.category || 'Expense',
+      detail: x.description || 'Business expense', amount: Number(x.amount) || 0, kind: 'Expense'
+    })),
+    ...readData('smartledger-pro-payments').map(x => ({
+      date: x.date, title: `${x.type || 'Payment'} — ${x.party || ''}`,
+      detail: x.method || 'Payment transaction', amount: Number(x.amount) || 0, kind: 'Payment'
+    }))
+  ]
+  return records.sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 8)
+}
+
+
+
+function getMonthlyPerformance() {
+  const groups: Record<string, { month: string; sales: number; purchases: number; expenses: number }> = {}
+  const add = (key: string, field: 'sales' | 'purchases' | 'expenses', amount: (x: any) => number) => {
+    readData(key).forEach(x => {
+      const date = String(x.date || '')
+      if (!/^\d{4}-\d{2}/.test(date)) return
+      const month = date.slice(0, 7)
+      groups[month] ||= { month, sales: 0, purchases: 0, expenses: 0 }
+      groups[month][field] += amount(x)
+    })
+  }
+  add('smartledger-pro-sales', 'sales', x => Number(x.total) || 0)
+  add('smartledger-pro-purchases', 'purchases', x => Number(x.total) || Number(x.qty) * Number(x.rate) || 0)
+  add('smartledger-pro-expenses', 'expenses', x => Number(x.amount) || 0)
+  return Object.values(groups).sort((a, b) => a.month.localeCompare(b.month)).slice(-6)
+}
 
 function App() {
   const [active, setActive] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
+  const metrics = getDashboardMetrics()
+  const recentTransactions = getRecentTransactions()
+  const monthlyPerformance = getMonthlyPerformance()
 
   return (
     <div className="min-h-screen bg-[#f5f3eb] text-[#25382d]">
@@ -144,10 +217,19 @@ function App() {
                 <div><h3 className="font-bold">Business performance</h3><p className="mt-1 text-xs text-[#929b91]">Your financial activity will appear here.</p></div>
                 <button className="rounded-lg border border-[#e8e4d9] px-3 py-2 text-xs">This month <ChevronDown className="ml-2 inline" size={13}/></button>
               </div>
-              <div className="flex h-56 flex-col items-center justify-center text-center">
-                <ChartNoAxesCombined size={38} className="text-[#b6c2b4]"/>
-                <p className="mt-3 text-sm font-semibold">No transactions yet</p>
-                <p className="mt-1 text-xs text-[#929b91]">Create your first transaction to see business analytics.</p>
+              <div className="mt-5 h-56 w-full">
+                {monthlyPerformance.length ? <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyPerformance}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`} />
+                    <Legend />
+                    <Bar dataKey="sales" name="Sales" fill="#1b4332" />
+                    <Bar dataKey="purchases" name="Purchases" fill="#b08968" />
+                    <Bar dataKey="expenses" name="Expenses" fill="#d97757" />
+                  </BarChart>
+                </ResponsiveContainer> : <p className="pt-20 text-center text-sm text-[#929b91]">Add dated transactions to view performance.</p>}
               </div>
             </div>
             <div className="rounded-2xl border border-[#e8e4d9] bg-white p-6">
@@ -172,7 +254,27 @@ function App() {
               <div><h3 className="font-bold">Recent transactions</h3><p className="mt-1 text-xs text-[#929b91]">Your latest business activity</p></div>
               <button onClick={() => setActive('Reports')} className="text-xs font-semibold text-[#31583e]">View reports →</button>
             </div>
-            <div className="flex h-32 items-center justify-center text-sm text-[#929b91]">No transactions recorded yet.</div>
+            <div className="mt-4 overflow-x-auto">
+              {recentTransactions.length ? <table className="w-full text-left text-sm">
+                <thead><tr className="border-b text-[#849187]"><th className="p-2">Date</th><th className="p-2">Transaction</th><th className="p-2">Reference</th><th className="p-2 text-right">Amount</th></tr></thead>
+                <tbody>{recentTransactions.map((x, i) => <tr className="border-b border-[#eeeae0]" key={`${x.kind}-${x.date}-${i}`}>
+                  <td className="p-3 whitespace-nowrap">{x.date || '—'}</td>
+                  <td className="p-3"><span className="font-medium">{x.title}</span><p className="text-xs text-[#929b91]">{x.kind}</p></td>
+                  <td className="p-3">{x.detail}</td>
+                  <td className="p-3 text-right font-semibold">₹{x.amount.toLocaleString('en-IN', {maximumFractionDigits: 2})}</td>
+                </tr>)}</tbody>
+              </table> : <div className="mt-4 overflow-x-auto">
+              {recentTransactions.length ? <table className="w-full text-left text-sm">
+                <thead><tr className="border-b text-[#849187]"><th className="p-2">Date</th><th className="p-2">Transaction</th><th className="p-2">Reference</th><th className="p-2 text-right">Amount</th></tr></thead>
+                <tbody>{recentTransactions.map((x, i) => <tr className="border-b border-[#eeeae0]" key={`${x.kind}-${x.date}-${i}`}>
+                  <td className="p-3 whitespace-nowrap">{x.date || '—'}</td>
+                  <td className="p-3"><span className="font-medium">{x.title}</span><p className="text-xs text-[#929b91]">{x.kind}</p></td>
+                  <td className="p-3">{x.detail}</td>
+                  <td className="p-3 text-right font-semibold">₹{x.amount.toLocaleString('en-IN', {maximumFractionDigits: 2})}</td>
+                </tr>)}</tbody>
+              </table> : <div className="flex h-32 items-center justify-center text-sm text-[#929b91]">No transactions recorded yet.</div>}
+            </div>}
+            </div>
           </section>
 
           <footer className="py-8 text-center text-xs text-[#929b91]">SmartLedger Pro · Business management platform</footer>
