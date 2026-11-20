@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { downloadInvoicePdf } from '../utils/invoicePdf';
 
 type Product = { id: string; name: string; selling: number; purchase: number; stock: number; sku?: string; category?: string; gstRate?: number; hsn?: string };
 type Sale = { id: string; invoice: string; date: string; customer: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number; taxableValue?: number; gstRate?: number; taxAmount?: number; cgst?: number; sgst?: number; utgst?: number; igst?: number; placeOfSupply?: string };
@@ -110,8 +111,8 @@ export default function Sales() {
     <div className="rounded-xl bg-white p-5 shadow-sm">
       <h2 className="mb-4 font-semibold text-lg">Recent Sales</h2>
       <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-        <thead><tr className="border-b text-gray-500"><th className="p-2">Invoice</th><th className="p-2">Date</th><th className="p-2">Customer</th><th className="p-2">Product</th><th className="p-2">Total</th><th className="p-2">Paid</th><th className="p-2">Due</th></tr></thead>
-        <tbody>{sales.map(s => <tr key={s.id} className="border-b"><td className="p-2">{s.invoice}</td><td className="p-2">{s.date}</td><td className="p-2">{s.customer}</td><td className="p-2">{s.product} × {s.qty}</td><td className="p-2">{money(s.total)}</td><td className="p-2">{money(s.paid)}</td><td className="p-2">{money(s.balance)}</td></tr>)}</tbody>
+        <thead><tr className="border-b text-gray-500"><th className="p-2">Invoice</th><th className="p-2">Date</th><th className="p-2">Customer</th><th className="p-2">Product</th><th className="p-2">Total</th><th className="p-2">Paid</th><th className="p-2">Due</th><th className="p-2">PDF</th></tr></thead>
+        <tbody>{sales.map(s => <tr key={s.id} className="border-b"><td className="p-2">{s.invoice}</td><td className="p-2">{s.date}</td><td className="p-2">{s.customer}</td><td className="p-2">{s.product} × {s.qty}</td><td className="p-2">{money(s.total)}</td><td className="p-2">{money(s.paid)}</td><td className="p-2">{money(s.balance)}</td><td className="p-2"><button onClick={() => { let b = {}; try { b = JSON.parse(localStorage.getItem('smartledger-pro-settings') || '{}'); } catch {} downloadInvoicePdf(s, b, 'sales'); }} className="rounded bg-green-900 px-3 py-2 text-white">Download PDF</button></td></tr>)}</tbody>
       </table></div>
       {sales.length === 0 && <p className="py-6 text-center text-gray-500">No sales invoices yet.</p>}
     </div>
