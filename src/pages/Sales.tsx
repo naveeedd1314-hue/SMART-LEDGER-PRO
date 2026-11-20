@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 
 type Product = { id: string; name: string; selling: number; purchase: number; stock: number; sku?: string; category?: string; gstRate?: number; hsn?: string };
-type Sale = { id: string; invoice: string; date: string; customer: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number; taxableValue?: number; gstRate?: number; taxAmount?: number; cgst?: number; sgst?: number; utgst?: number; igst?: number; placeOfSupply?: string };
+type Sale = { id: string; invoice: string; date: string; customer: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number; taxableValue?: number; gstRate?: number; taxAmount?: number; cgst?: number; sgst?: number; utgst?: number; igst?: number; placeOfSupply?: string; hsn?: string; customerGstin?: string; customerAddress?: string };
 
 export default function Sales() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -44,6 +44,15 @@ export default function Sales() {
       alert('Check product, quantity, stock and payment amount.');
       return;
     }
+    let customerDetails: { gstin?: string; address?: string } = {};
+    try {
+      const customers = JSON.parse(localStorage.getItem('smartledger-pro-customers') || '[]');
+      const match = Array.isArray(customers)
+        ? customers.find((x: any) => x.name?.trim().toLowerCase() === customer.trim().toLowerCase())
+        : undefined;
+      if (match) customerDetails = { gstin: match.gstin || '', address: match.address || '' };
+    } catch {}
+
     const sale: Sale = {
       id: crypto.randomUUID(),
       invoice: `SL-${Date.now().toString().slice(-8)}`,
@@ -52,7 +61,10 @@ export default function Sales() {
       product: selected.name,
       qty, rate, total, paid, balance: total - paid,
       taxableValue, gstRate, taxAmount, cgst, sgst, utgst, igst,
-      placeOfSupply: applyGST ? placeOfSupply : ''
+      placeOfSupply: applyGST ? placeOfSupply : '',
+      hsn: selected.hsn || '',
+      customerGstin: customerDetails.gstin || '',
+      customerAddress: customerDetails.address || ''
     };
     const updatedProducts = products.map(p => p.id === selected.id ? { ...p, stock: p.stock - qty } : p);
     const updatedSales = [sale, ...sales];

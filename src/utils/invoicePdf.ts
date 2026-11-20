@@ -14,6 +14,9 @@ type InvoiceRecord = {
   date: string;
   customer?: string;
   supplier?: string;
+  customerGstin?: string;
+  customerAddress?: string;
+  hsn?: string;
   product: string;
   qty: number;
   rate: number;
@@ -86,17 +89,23 @@ export function downloadInvoicePdf(
   doc.text(type === 'sales' ? 'Bill To:' : 'Supplier:', left, y);
   y += 7;
   doc.setFont('helvetica', 'normal');
-  doc.text(
-    type === 'sales'
-      ? record.customer || 'Walk-in Customer'
-      : record.supplier || '-',
-    left, y
-  );
+  const partyLines = type === 'sales'
+    ? [record.customer || 'Walk-in Customer', record.customerAddress || '',
+       record.customerGstin ? `GSTIN: ${record.customerGstin}` : '']
+    : [record.supplier || '-'];
 
+  partyLines.filter(Boolean).forEach(line => {
+    const wrapped = doc.splitTextToSize(String(line), pageWidth - 30);
+    doc.text(wrapped, left, y);
+    y += wrapped.length * 5;
+  });
+
+  y += 8;
   y += 13;
   doc.setFont('helvetica', 'bold');
   doc.text('Item', left, y);
-  doc.text('Qty', 105, y, { align: 'right' });
+  doc.text('HSN/SAC', 85, y, { align: 'right' });
+  doc.text('Qty', 108, y, { align: 'right' });
   doc.text('Rate', 145, y, { align: 'right' });
   doc.text('Amount', right, y, { align: 'right' });
   y += 3;
@@ -105,7 +114,8 @@ export function downloadInvoicePdf(
 
   doc.setFont('helvetica', 'normal');
   doc.text(record.product || '-', left, y);
-  doc.text(String(record.qty || 0), 105, y, { align: 'right' });
+  doc.text(record.hsn || '-', 85, y, { align: 'right' });
+  doc.text(String(record.qty || 0), 108, y, { align: 'right' });
   doc.text(money(record.rate), 145, y, { align: 'right' });
   doc.text(money(record.taxableValue ?? record.qty * record.rate), right, y, { align: 'right' });
 
@@ -122,11 +132,19 @@ export function downloadInvoicePdf(
   addRow('Taxable value', record.taxableValue ?? record.qty * record.rate);
 
   if (Number(record.taxAmount) > 0) {
-    addRow(`GST (${record.gstRate || 0}%)`, record.taxAmount || 0);
-    if (record.cgst) addRow('CGST', record.cgst);
-    if (record.sgst) addRow('SGST', record.sgst);
-    if (record.utgst) addRow('UTGST', record.utgst);
-    if (record.igst) addRow('IGST', record.igst);
+    const hasBreakdown = Number(record.cgst) > 0 ||
+      Number(record.sgst) > 0 || Number(record.utgst) > 0 ||
+      Number(record.igst) > 0;
+
+    if (hasBreakdown) {
+      if (record.cgst) addRow('CGST', record.cgst);
+      if (record.sgst) addRow('SGST', record.sgst);
+      if (record.utgst) addRow('UTGST', record.utgst);
+      if (record.igst) addRow('IGST', record.igst);
+    } else {
+      addRow(`GST (${record.gstRate || 0}%)`, record.taxAmount || 0);
+    }
+    addRow('Total GST', record.taxAmount || 0);
   }
 
   doc.setFont('helvetica', 'bold');
