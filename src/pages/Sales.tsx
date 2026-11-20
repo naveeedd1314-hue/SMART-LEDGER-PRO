@@ -1,0 +1,83 @@
+import { useEffect, useState } from 'react';
+
+type Product = { id: string; name: string; selling: number; purchase: number; stock: number; sku?: string; category?: string };
+type Sale = { id: string; invoice: string; date: string; customer: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number };
+
+export default function Sales() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [customer, setCustomer] = useState('Walk-in Customer');
+  const [productId, setProductId] = useState('');
+  const [qty, setQty] = useState(1);
+  const [rate, setRate] = useState(0);
+  const [paid, setPaid] = useState(0);
+
+  useEffect(() => {
+    setProducts(JSON.parse(localStorage.getItem('smartledger-products') || '[]'));
+    setSales(JSON.parse(localStorage.getItem('smartledger-pro-sales') || '[]'));
+  }, []);
+
+  const selected = products.find(p => p.id === productId);
+  const total = qty * rate;
+
+  function saveSale() {
+    if (!selected || qty <= 0 || rate < 0 || paid < 0 || paid > total || qty > selected.stock) {
+      alert('Check product, quantity, stock and payment amount.');
+      return;
+    }
+    const sale: Sale = {
+      id: crypto.randomUUID(),
+      invoice: `SL-${Date.now().toString().slice(-8)}`,
+      date: new Date().toISOString().slice(0, 10),
+      customer: customer.trim() || 'Walk-in Customer',
+      product: selected.name,
+      qty, rate, total, paid, balance: total - paid
+    };
+    const updatedProducts = products.map(p => p.id === selected.id ? { ...p, stock: p.stock - qty } : p);
+    const updatedSales = [sale, ...sales];
+    localStorage.setItem('smartledger-products', JSON.stringify(updatedProducts));
+    localStorage.setItem('smartledger-pro-sales', JSON.stringify(updatedSales));
+    setProducts(updatedProducts);
+    setSales(updatedSales);
+    setCustomer('Walk-in Customer');
+    setProductId('');
+    setQty(1);
+    setRate(0);
+    setPaid(0);
+  }
+
+  const money = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+  return <section className="space-y-6">
+    <div><h1 className="text-2xl font-bold">Sales & Invoices</h1><p className="text-sm text-gray-500">Create sales invoices and track customer balances.</p></div>
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rounded-xl bg-white p-4 shadow-sm"><p className="text-sm text-gray-500">Total Sales</p><strong className="text-xl">{money(sales.reduce((s, x) => s + x.total, 0))}</strong></div>
+      <div className="rounded-xl bg-white p-4 shadow-sm"><p className="text-sm text-gray-500">Received</p><strong className="text-xl">{money(sales.reduce((s, x) => s + x.paid, 0))}</strong></div>
+      <div className="rounded-xl bg-white p-4 shadow-sm"><p className="text-sm text-gray-500">To Collect</p><strong className="text-xl">{money(sales.reduce((s, x) => s + x.balance, 0))}</strong></div>
+    </div>
+    <div className="rounded-xl bg-white p-5 shadow-sm space-y-4">
+      <h2 className="font-semibold text-lg">New Sales Invoice</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">Customer name<input className="mt-1 w-full rounded-lg border p-3" value={customer} onChange={e => setCustomer(e.target.value)} /></label>
+        <label className="text-sm">Product<select className="mt-1 w-full rounded-lg border p-3" value={productId} onChange={e => { const p = products.find(x => x.id === e.target.value); setProductId(e.target.value); setRate(p?.selling || 0); }}><option value="">Select product</option>{products.map(p => <option key={p.id} value={p.id}>{p.name} — Stock: {p.stock}</option>)}</select></label>
+        <label className="text-sm">Quantity<input type="number" min="1" className="mt-1 w-full rounded-lg border p-3" value={qty} onChange={e => setQty(Number(e.target.value))} /></label>
+        <label className="text-sm">Selling rate<input type="number" min="0" className="mt-1 w-full rounded-lg border p-3" value={rate} onChange={e => setRate(Number(e.target.value))} /></label>
+        <label className="text-sm">Amount received<input type="number" min="0" className="mt-1 w-full rounded-lg border p-3" value={paid} onChange={e => setPaid(Number(e.target.value))} /></label>
+      </div>
+      <div className="rounded-lg bg-stone-100 p-4 text-sm space-y-2">
+        <p>Invoice total: <strong>{money(total)}</strong></p>
+        <p>Balance due: <strong>{money(total - paid)}</strong></p>
+        <p>Available stock: <strong>{selected?.stock ?? '—'}</strong></p>
+      </div>
+      <button onClick={saveSale} className="rounded-lg bg-green-900 px-5 py-3 font-semibold text-white">Save Invoice</button>
+    </div>
+    <div className="rounded-xl bg-white p-5 shadow-sm">
+      <h2 className="mb-4 font-semibold text-lg">Recent Sales</h2>
+      <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+        <thead><tr className="border-b text-gray-500"><th className="p-2">Invoice</th><th className="p-2">Date</th><th className="p-2">Customer</th><th className="p-2">Product</th><th className="p-2">Total</th><th className="p-2">Paid</th><th className="p-2">Due</th></tr></thead>
+        <tbody>{sales.map(s => <tr key={s.id} className="border-b"><td className="p-2">{s.invoice}</td><td className="p-2">{s.date}</td><td className="p-2">{s.customer}</td><td className="p-2">{s.product} × {s.qty}</td><td className="p-2">{money(s.total)}</td><td className="p-2">{money(s.paid)}</td><td className="p-2">{money(s.balance)}</td></tr>)}</tbody>
+      </table></div>
+      {sales.length === 0 && <p className="py-6 text-center text-gray-500">No sales invoices yet.</p>}
+    </div>
+  </section>;
+}
