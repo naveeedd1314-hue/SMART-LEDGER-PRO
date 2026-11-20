@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-type Product = { id: string; name: string; selling: number; purchase: number; stock: number; sku?: string; category?: string };
-type Sale = { id: string; invoice: string; date: string; customer: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number };
+type Product = { id: string; name: string; selling: number; purchase: number; stock: number; sku?: string; category?: string; gstRate?: number; hsn?: string };
+type Sale = { id: string; invoice: string; date: string; customer: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number; taxableValue?: number; gstRate?: number; taxAmount?: number; cgst?: number; sgst?: number; utgst?: number; igst?: number; placeOfSupply?: string };
 
 export default function Sales() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -11,14 +11,32 @@ export default function Sales() {
   const [qty, setQty] = useState(1);
   const [rate, setRate] = useState(0);
   const [paid, setPaid] = useState(0);
+  const [applyGST, setApplyGST] = useState(false);
+  const [businessState, setBusinessState] = useState('Jammu and Kashmir');
+  const [placeOfSupply, setPlaceOfSupply] = useState('Jammu and Kashmir');
 
   useEffect(() => {
     setProducts(JSON.parse(localStorage.getItem('smartledger-products') || '[]'));
     setSales(JSON.parse(localStorage.getItem('smartledger-pro-sales') || '[]'));
+    try {
+      const settings = JSON.parse(localStorage.getItem('smartledger-pro-settings') || '{}');
+      const state = settings.state || 'Jammu and Kashmir';
+      setBusinessState(state);
+      setPlaceOfSupply(state);
+    } catch {}
   }, []);
 
   const selected = products.find(p => p.id === productId);
-  const total = qty * rate;
+  const taxableValue = qty * rate;
+  const gstRate = applyGST ? Number(selected?.gstRate) || 0 : 0;
+  const taxAmount = taxableValue * gstRate / 100;
+  const sameState = placeOfSupply.trim().toLowerCase() === businessState.trim().toLowerCase();
+  const isJammuKashmir = businessState.trim().toLowerCase().includes('jammu');
+  const cgst = applyGST && sameState ? taxAmount / 2 : 0;
+  const sgst = applyGST && sameState && !isJammuKashmir ? taxAmount / 2 : 0;
+  const utgst = applyGST && sameState && isJammuKashmir ? taxAmount / 2 : 0;
+  const igst = applyGST && !sameState ? taxAmount : 0;
+  const total = taxableValue + taxAmount;
 
   function saveSale() {
     if (!selected || qty <= 0 || rate < 0 || paid < 0 || paid > total || qty > selected.stock) {
@@ -31,7 +49,9 @@ export default function Sales() {
       date: new Date().toISOString().slice(0, 10),
       customer: customer.trim() || 'Walk-in Customer',
       product: selected.name,
-      qty, rate, total, paid, balance: total - paid
+      qty, rate, total, paid, balance: total - paid,
+      taxableValue, gstRate, taxAmount, cgst, sgst, utgst, igst,
+      placeOfSupply: applyGST ? placeOfSupply : ''
     };
     const updatedProducts = products.map(p => p.id === selected.id ? { ...p, stock: p.stock - qty } : p);
     const updatedSales = [sale, ...sales];
@@ -63,8 +83,24 @@ export default function Sales() {
         <label className="text-sm">Quantity<input type="number" min="1" className="mt-1 w-full rounded-lg border p-3" value={qty} onChange={e => setQty(Number(e.target.value))} /></label>
         <label className="text-sm">Selling rate<input type="number" min="0" className="mt-1 w-full rounded-lg border p-3" value={rate} onChange={e => setRate(Number(e.target.value))} /></label>
         <label className="text-sm">Amount received<input type="number" min="0" className="mt-1 w-full rounded-lg border p-3" value={paid} onChange={e => setPaid(Number(e.target.value))} /></label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={applyGST} onChange={e => setApplyGST(e.target.checked)} />
+          Apply GST to this invoice
+        </label>
+        {applyGST && <label className="text-sm">Place of supply (state / UT)
+          <input className="mt-1 w-full rounded-lg border p-3" value={placeOfSupply} onChange={e => setPlaceOfSupply(e.target.value)} />
+        </label>}
       </div>
       <div className="rounded-lg bg-stone-100 p-4 text-sm space-y-2">
+        <p>Taxable value: <strong>{money(taxableValue)}</strong></p>
+        {applyGST && <>
+          <p>GST rate: <strong>{gstRate}%</strong></p>
+          <p>CGST: <strong>{money(cgst)}</strong></p>
+          {isJammuKashmir && sameState && <p>UTGST: <strong>{money(utgst)}</strong></p>}
+          {!isJammuKashmir && sameState && <p>SGST: <strong>{money(sgst)}</strong></p>}
+          {!sameState && <p>IGST: <strong>{money(igst)}</strong></p>}
+          <p>Total GST: <strong>{money(taxAmount)}</strong></p>
+        </>}
         <p>Invoice total: <strong>{money(total)}</strong></p>
         <p>Balance due: <strong>{money(total - paid)}</strong></p>
         <p>Available stock: <strong>{selected?.stock ?? '—'}</strong></p>

@@ -23,14 +23,14 @@ export default function Reports() {
 
   const num = (v: unknown) => Number(v) || 0;
   const salesTotal = sales.reduce((s,x)=>s+num(x.total),0);
-  const purchaseTotal = purchases.reduce((s,x)=>s+num(x.total || x.amount) || s+num(x.qty)*num(x.rate),0);
+  const purchaseTotal = purchases.reduce((s,x)=>s+(num(x.total || x.amount) || num(x.qty)*num(x.rate)),0);
   const expenseTotal = expenses.reduce((s,x)=>s+num(x.amount),0);
   const received = payments.filter(x=>x.type==='Customer Receipt').reduce((s,x)=>s+num(x.amount),0);
   const supplierPaid = payments.filter(x=>x.type==='Supplier Payment').reduce((s,x)=>s+num(x.amount),0);
   const salesPaid = sales.reduce((s,x)=>s+num(x.paid),0);
   const purchasePaid = purchases.reduce((s,x)=>s+num(x.paid),0);
-  const customerDue = sales.reduce((s,x)=>s+num(x.balance),0);
-  const supplierDue = purchases.reduce((s,x)=>s+Math.max(0,num(x.total || x.amount || (num(x.qty)*num(x.rate))-num(x.paid))),0);
+  const customerDue = Math.max(0, sales.reduce((s,x)=>s+num(x.balance),0) - received);
+  const supplierDue = Math.max(0, purchases.reduce((s,x)=>s+(num(x.balance) || Math.max(0,num(x.total || x.amount || num(x.qty)*num(x.rate))-num(x.paid))),0) - supplierPaid);
   const netMovement = salesPaid + received - purchasePaid - supplierPaid - expenseTotal;
   const money = (n:number)=>`₹${n.toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 

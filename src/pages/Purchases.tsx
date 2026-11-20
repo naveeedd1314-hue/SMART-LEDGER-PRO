@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-type Product = { id: string; name: string; purchase: number; selling: number; stock: number; sku?: string; category?: string };
+type Product = { id: string; name: string; purchase: number; selling: number; stock: number; sku?: string; category?: string; gstRate?: number; hsn?: string; };
 type Supplier = { id: string; name: string };
 type Purchase = { id: string; supplier: string; invoice: string; date: string; product: string; qty: number; rate: number; total: number; paid: number; balance: number };
 
@@ -15,6 +15,10 @@ export default function Purchases() {
   const [qty,setQty] = useState(1);
   const [rate,setRate] = useState(0);
   const [paid,setPaid] = useState(0);
+  const [applyGST, setApplyGST] = useState(false);
+  const [businessState, setBusinessState] = useState('Jammu and Kashmir');
+  const [placeOfSupply, setPlaceOfSupply] = useState('Jammu and Kashmir');
+
 
   const read = <T,>(key:string):T[] => {
     try { const v=JSON.parse(localStorage.getItem(key)||'[]'); return Array.isArray(v)?v:[]; } catch { return []; }
@@ -24,10 +28,25 @@ export default function Purchases() {
     setProducts(read<Product>('smartledger-products'));
     setSuppliers(read<Supplier>('smartledger-pro-suppliers'));
     setItems(read<Purchase>('smartledger-pro-purchases'));
+try {
+  const settings = JSON.parse(localStorage.getItem('smartledger-pro-settings') || '{}');
+  const state = settings.state || 'Jammu and Kashmir';
+  setBusinessState(state);
+  setPlaceOfSupply(state);
+} catch {}
   },[]);
 
   const selected=products.find(p=>p.id===productId);
-  const total=qty*rate;
+  const taxableValue = qty * rate;
+const gstRate = applyGST ? Number(selected?.gstRate) || 0 : 0;
+const taxAmount = taxableValue * gstRate / 100;
+const sameState = placeOfSupply.trim().toLowerCase() === businessState.trim().toLowerCase();
+const isJammuKashmir = businessState.trim().toLowerCase().includes('jammu');
+const cgst = applyGST && sameState ? taxAmount / 2 : 0;
+const sgst = applyGST && sameState && !isJammuKashmir ? taxAmount / 2 : 0;
+const utgst = applyGST && sameState && isJammuKashmir ? taxAmount / 2 : 0;
+const igst = applyGST && !sameState ? taxAmount : 0;
+const total = taxableValue + taxAmount;
   const money=(n:number)=>`₹${n.toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
   function save() {
@@ -69,9 +88,18 @@ export default function Purchases() {
         <label className="text-sm">Product<select className="mt-1 w-full rounded-lg border p-3" value={productId} onChange={e=>{setProductId(e.target.value);setRate(Number(products.find(p=>p.id===e.target.value)?.purchase)||0);}}><option value="">Select product</option>{products.map(p=><option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>)}</select></label>
         <label className="text-sm">Quantity<input type="number" min="0.01" step="any" className="mt-1 w-full rounded-lg border p-3" value={qty} onChange={e=>setQty(Number(e.target.value))}/></label>
         <label className="text-sm">Purchase rate<input type="number" min="0" step="any" className="mt-1 w-full rounded-lg border p-3" value={rate} onChange={e=>setRate(Number(e.target.value))}/></label>
-        <label className="text-sm">Amount paid<input type="number" min="0" step="any" className="mt-1 w-full rounded-lg border p-3" value={paid} onChange={e=>setPaid(Number(e.target.value))}/></label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={applyGST} onChange={e=>setApplyGST(e.target.checked)}/> Apply GST to this purchase</label>
+{applyGST && <label className="text-sm">Place of supply (state / UT)<input className="mt-1 w-full rounded-lg border p-3" value={placeOfSupply} onChange={e=>setPlaceOfSupply(e.target.value)}/></label>}
+<label className="text-sm">Amount paid<input type="number" min="0" step="any" className="mt-1 w-full rounded-lg border p-3" value={paid} onChange={e=>setPaid(Number(e.target.value))}/></label>
       </div>
-      <div className="rounded-lg bg-stone-100 p-4 text-sm"><p>Invoice total: <strong>{money(total)}</strong></p><p>Remaining payable: <strong>{money(total-paid)}</strong></p><p>Stock after purchase: <strong>{(selected?.stock||0)+qty}</strong></p></div>
+      <div className="rounded-lg bg-stone-100 p-4 text-sm"><p>Taxable value: <strong>{money(taxableValue)}</strong></p>
+{applyGST && <><p>GST rate: <strong>{gstRate}%</strong></p>
+<p>CGST: <strong>{money(cgst)}</strong></p>
+{isJammuKashmir && sameState && <p>UTGST: <strong>{money(utgst)}</strong></p>}
+{!isJammuKashmir && sameState && <p>SGST: <strong>{money(sgst)}</strong></p>}
+{!sameState && <p>IGST: <strong>{money(igst)}</strong></p>}
+<p>Total GST: <strong>{money(taxAmount)}</strong></p></>}
+<p>Invoice total: <strong>{money(total)}</strong></p><p>Remaining payable: <strong>{money(total-paid)}</strong></p><p>Stock after purchase: <strong>{(selected?.stock||0)+qty}</strong></p></div>
       <button onClick={save} className="rounded-lg bg-green-900 px-5 py-3 font-semibold text-white">Save Purchase</button>
     </div>
     <div className="rounded-xl bg-white p-5 shadow-sm">

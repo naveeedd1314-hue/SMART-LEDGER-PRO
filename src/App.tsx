@@ -1,3 +1,4 @@
+import GST from './pages/GST'
 import SettingsPage from './pages/Settings'
 import Ledger from './pages/Ledger'
 import Reports from './pages/Reports'
@@ -38,6 +39,7 @@ const navigation = [
     { name: 'Reports', icon: FileText },
     { name: 'Ledger', icon: BookOpen },
     { name: 'Returns', icon: Receipt },
+    { name: 'GST & Tax', icon: FileText },
   ]},
   { title: 'SYSTEM', items: [
     { name: 'Settings', icon: Settings },
@@ -182,7 +184,7 @@ function App() {
           </div>
         </header>
 
-        {active === 'Analytics' ? <Analytics /> : active === 'Sales' ? <Sales /> : active === 'Purchases' ? <Purchases /> : active === 'Inventory' ? <Inventory /> : active === 'Customers' ? <Customers /> : active === 'Suppliers' ? <Suppliers /> : active === 'Expenses' ? <Expenses /> : active === 'Payments' ? <Payments /> : active === 'Reports' ? <Reports /> : active === 'Ledger' ? <Ledger /> : active === 'Returns' ? <Returns /> : active === 'Settings' ? <SettingsPage /> : (
+        {active === 'Analytics' ? <Analytics /> : active === 'Sales' ? <Sales /> : active === 'Purchases' ? <Purchases /> : active === 'Inventory' ? <Inventory /> : active === 'Customers' ? <Customers /> : active === 'Suppliers' ? <Suppliers /> : active === 'Expenses' ? <Expenses /> : active === 'Payments' ? <Payments /> : active === 'Reports' ? <Reports /> : active === 'Ledger' ? <Ledger /> : active === 'Returns' ? <Returns /> : active === 'GST & Tax' ? <GST /> : active === 'Settings' ? <SettingsPage /> : (
         <div className="mx-auto max-w-7xl p-4 md:p-8">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div>
