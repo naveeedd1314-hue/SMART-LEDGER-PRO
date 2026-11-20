@@ -1,3 +1,12 @@
+import SettingsPage from './pages/Settings'
+import Ledger from './pages/Ledger'
+import Reports from './pages/Reports'
+import Payments from './pages/Payments'
+import Expenses from './pages/Expenses'
+import Suppliers from './pages/Suppliers'
+import Customers from './pages/Customers'
+import Sales from './pages/Sales'
+import Analytics from './pages/Analytics'
 import Returns from './pages/Returns'
 import Purchases from './pages/Purchases'
 import Inventory from './pages/Inventory'
@@ -100,7 +109,7 @@ function App() {
           </div>
         </header>
 
-        {active === 'Returns' ? <Returns /> : active === 'Purchases' ? <Purchases /> : active === 'Inventory' ? <Inventory /> : (
+        {active === 'Analytics' ? <Analytics /> : active === 'Sales' ? <Sales /> : active === 'Purchases' ? <Purchases /> : active === 'Inventory' ? <Inventory /> : active === 'Customers' ? <Customers /> : active === 'Suppliers' ? <Suppliers /> : active === 'Expenses' ? <Expenses /> : active === 'Payments' ? <Payments /> : active === 'Reports' ? <Reports /> : active === 'Ledger' ? <Ledger /> : active === 'Returns' ? <Returns /> : active === 'Settings' ? <SettingsPage /> : (
         <div className="mx-auto max-w-7xl p-4 md:p-8">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div>
