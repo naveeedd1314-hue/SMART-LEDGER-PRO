@@ -101,7 +101,7 @@ function downloadInvoiceHistoryPdf() {
   rows.forEach((row: any) => {
     const values = [
       row.invoice, row.date, row.type, row.party,
-      row.method, row.reference, money(Number(row.amount) || 0)
+      row.method, row.reference, "INR " + Number(row.amount || 0).toLocaleString("en-IN", {maximumFractionDigits: 2})
     ];
     const cells = values.map((v, i) =>
       doc.splitTextToSize(String(v ?? "-"), widths[i] - 4).slice(0, 2)
@@ -246,9 +246,9 @@ function exportOutstandingPdf() {
   rows.forEach((row: any) => {
     const values = [
       row.invoice, row.party, row.type,
-      money(Number(row.total) || 0),
-      money(Number(row.paid) || 0),
-      money(Number(row.remaining) || 0),
+      "INR " + Number(row.total || 0).toLocaleString("en-IN", {maximumFractionDigits: 2}),
+      "INR " + Number(row.paid || 0).toLocaleString("en-IN", {maximumFractionDigits: 2}),
+      "INR " + Number(row.remaining || 0).toLocaleString("en-IN", {maximumFractionDigits: 2}),
       row.status
     ];
     const cells = values.map((v, i) =>
