@@ -61,28 +61,80 @@ export default function Payments() {
     }];
   });
 
-  function downloadInvoiceHistoryPdf() {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('Invoice-wise Payment History', 14, 18);
-    doc.setFontSize(9);
-    let y = 30;
-    doc.text('Invoice | Date | Type | Party | Method | Reference | Amount', 14, y);
-    y += 8;
-    invoiceHistoryRows.forEach((row: any) => {
-      const line = `${row.invoice} | ${row.date} | ${row.type} | ${row.party} | ${row.method} | ${row.reference || '-'} | ${money(row.amount)}`;
-      const lines = doc.splitTextToSize(line, 180);
-      if (y + lines.length * 5 > 280) {
-        doc.addPage();
-        y = 18;
-      }
-      doc.text(lines, 14, y);
-      y += lines.length * 5 + 3;
-    });
-    doc.save('SmartLedger-Invoice-Payment-History.pdf');
-  }
+  
+function downloadInvoiceHistoryPdf() {
+  const doc = new jsPDF({ orientation: "landscape" });
+  const rows = invoiceHistoryRows;
+  const headers = ["Invoice", "Date", "Type", "Party", "Method", "Reference", "Amount"];
+  const widths = [34, 24, 25, 43, 30, 48, 35];
+  const left = 14;
 
-  function shareInvoiceHistoryWhatsApp() {
+  const heading = () => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(17);
+    doc.text("SMARTLEDGER", left, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("INVOICE-WISE PAYMENT HISTORY", left, 21);
+    doc.setDrawColor(110, 130, 110);
+    doc.line(left, 25, 283, 25);
+  };
+
+  const tableHead = () => {
+    let x = left;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setFillColor(232, 238, 229);
+    widths.forEach((w, i) => {
+      doc.rect(x, 30, w, 10, "FD");
+      doc.text(headers[i], x + 2, 36.5);
+      x += w;
+    });
+    return 40;
+  };
+
+  heading();
+  let y = tableHead();
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+
+  rows.forEach((row: any) => {
+    const values = [
+      row.invoice, row.date, row.type, row.party,
+      row.method, row.reference, money(Number(row.amount) || 0)
+    ];
+    const cells = values.map((v, i) =>
+      doc.splitTextToSize(String(v ?? "-"), widths[i] - 4).slice(0, 2)
+    );
+    const h = Math.max(10, ...cells.map((c: string[]) => c.length * 4 + 4));
+
+    if (y + h > 190) {
+      doc.addPage();
+      heading();
+      y = tableHead();
+    }
+
+    let x = left;
+    widths.forEach((w, i) => {
+      doc.rect(x, y, w, h);
+      doc.text(cells[i], x + 2, y + 5);
+      x += w;
+    });
+    y += h;
+  });
+
+  if (!rows.length) doc.text("No payment history found.", left, y + 8);
+
+  for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Page ${i} of ${doc.getNumberOfPages()}`, 283, 202, { align: "right" });
+  }
+  doc.save("SmartLedger-Invoice-Payment-History.pdf");
+}
+
+
+function shareInvoiceHistoryWhatsApp() {
     const lines = [
       '*SmartLedger - Invoice Payment History*',
       '',
@@ -91,7 +143,7 @@ export default function Payments() {
       )
     ];
     const message = lines.join('\n\n');
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
   }
 
 
@@ -154,29 +206,93 @@ export default function Payments() {
     URL.revokeObjectURL(url);
   }
 
-  function exportOutstandingPdf() {
-    const doc = new jsPDF();
-    doc.setFontSize(15);
-    doc.text('Invoice Outstanding Report', 14, 18);
-    doc.setFontSize(8);
-    let y = 29;
-    const headers = 'Invoice | Party | Type | Total | Paid | Remaining | Status';
-    doc.text(headers, 14, y);
-    y += 7;
-    filteredInvoiceStatusRows.forEach((x: any) => {
-      const line = `${x.invoice} | ${x.party} | ${x.type} | ${money(x.total)} | ${money(x.paid)} | ${money(x.remaining)} | ${x.status}`;
-      const lines = doc.splitTextToSize(line, 180);
-      if (y + lines.length * 5 > 280) {
-        doc.addPage();
-        y = 18;
-      }
-      doc.text(lines, 14, y);
-      y += lines.length * 5 + 3;
-    });
-    doc.save('SmartLedger-Invoice-Outstanding.pdf');
-  }
+  
+function exportOutstandingPdf() {
+  const doc = new jsPDF({ orientation: "landscape" });
+  const rows = filteredInvoiceStatusRows;
+  const headers = ["Invoice", "Party", "Type", "Total", "Paid", "Remaining", "Status"];
+  const widths = [38, 48, 28, 36, 34, 39, 36];
+  const left = 14;
 
-  return <section className="space-y-5">
+  const heading = () => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(17);
+    doc.text("SMARTLEDGER", left, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("INVOICE OUTSTANDING REPORT", left, 21);
+    doc.setDrawColor(110, 130, 110);
+    doc.line(left, 25, 283, 25);
+  };
+
+  const tableHead = () => {
+    let x = left;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setFillColor(232, 238, 229);
+    widths.forEach((w, i) => {
+      doc.rect(x, 30, w, 10, "FD");
+      doc.text(headers[i], x + 2, 36.5);
+      x += w;
+    });
+    return 40;
+  };
+
+  heading();
+  let y = tableHead();
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+
+  rows.forEach((row: any) => {
+    const values = [
+      row.invoice, row.party, row.type,
+      money(Number(row.total) || 0),
+      money(Number(row.paid) || 0),
+      money(Number(row.remaining) || 0),
+      row.status
+    ];
+    const cells = values.map((v, i) =>
+      doc.splitTextToSize(String(v ?? "-"), widths[i] - 4).slice(0, 2)
+    );
+    const h = Math.max(10, ...cells.map((c: string[]) => c.length * 4 + 4));
+
+    if (y + h > 180) {
+      doc.addPage();
+      heading();
+      y = tableHead();
+    }
+
+    let x = left;
+    widths.forEach((w, i) => {
+      doc.rect(x, y, w, h);
+      doc.text(cells[i], x + 2, y + 5);
+      x += w;
+    });
+    y += h;
+  });
+
+  const remaining = rows.reduce(
+    (sum: number, row: any) => sum + (Number(row.remaining) || 0), 0
+  );
+  if (y + 10 > 190) {
+    doc.addPage();
+    heading();
+    y = 40;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(`TOTAL OUTSTANDING: ${money(remaining)}`, left, y + 8);
+
+  for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Page ${i} of ${doc.getNumberOfPages()}`, 283, 202, { align: "right" });
+  }
+  doc.save("SmartLedger-Invoice-Outstanding.pdf");
+}
+
+
+return <section className="space-y-5">
     <div><h1 className="text-2xl font-bold">Payments & Receipts</h1><p className="text-sm text-gray-500">Record money received from customers and paid to suppliers.</p></div>
     <div className="grid gap-3 sm:grid-cols-3">
       <div className="rounded-xl bg-white p-4 shadow-sm"><p className="text-sm text-gray-500">Customer Receipts</p><strong className="text-xl">{money(receipts)}</strong></div>
