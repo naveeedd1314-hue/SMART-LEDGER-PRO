@@ -7,6 +7,7 @@ export default function Reports() {
   const [purchases, setPurchases] = useState<Row[]>([]);
   const [expenses, setExpenses] = useState<Row[]>([]);
   const [payments, setPayments] = useState<Row[]>([]);
+  const [returns, setReturns] = useState<Row[]>([]);
 
   useEffect(() => {
     const read = (key: string): Row[] => {
@@ -19,24 +20,31 @@ export default function Reports() {
     setPurchases(read('smartledger-pro-purchases'));
     setExpenses(read('smartledger-pro-expenses'));
     setPayments(read('smartledger-pro-payments'));
+    setReturns(read('smartledger-pro-returns'));
   }, []);
 
   const num = (v: unknown) => Number(v) || 0;
   const salesTotal = sales.reduce((s,x)=>s+num(x.total),0);
   const purchaseTotal = purchases.reduce((s,x)=>s+(num(x.total || x.amount) || num(x.qty)*num(x.rate)),0);
+  const salesReturns = returns.filter(x=>x.type==='Sales Return');
+  const purchaseReturns = returns.filter(x=>x.type==='Purchase Return');
+  const salesReturnTotal = salesReturns.reduce((s,x)=>s+num(x.totalAmount ?? x.amount),0);
+  const purchaseReturnTotal = purchaseReturns.reduce((s,x)=>s+num(x.totalAmount ?? x.amount),0);
+  const netSales = Math.max(0,salesTotal-salesReturnTotal);
+  const netPurchases = Math.max(0,purchaseTotal-purchaseReturnTotal);
   const expenseTotal = expenses.reduce((s,x)=>s+num(x.amount),0);
   const received = payments.filter(x=>x.type==='Customer Receipt').reduce((s,x)=>s+num(x.amount),0);
   const supplierPaid = payments.filter(x=>x.type==='Supplier Payment').reduce((s,x)=>s+num(x.amount),0);
   const salesPaid = sales.reduce((s,x)=>s+num(x.paid),0);
   const purchasePaid = purchases.reduce((s,x)=>s+num(x.paid),0);
-  const customerDue = Math.max(0, sales.reduce((s,x)=>s+num(x.balance),0) - received);
-  const supplierDue = Math.max(0, purchases.reduce((s,x)=>s+(num(x.balance) || Math.max(0,num(x.total || x.amount || num(x.qty)*num(x.rate))-num(x.paid))),0) - supplierPaid);
+  const customerDue = Math.max(0, sales.reduce((s,x)=>s+num(x.balance),0) - received - salesReturnTotal);
+  const supplierDue = Math.max(0, purchases.reduce((s,x)=>s+(num(x.balance) || Math.max(0,num(x.total || x.amount || num(x.qty)*num(x.rate))-num(x.paid))),0) - supplierPaid - purchaseReturnTotal);
   const netMovement = salesPaid + received - purchasePaid - supplierPaid - expenseTotal;
   const money = (n:number)=>`₹${n.toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 
   const cards = [
-    ['Sales Revenue',salesTotal],
-    ['Purchase Value',purchaseTotal],
+    ['Net Sales Revenue',netSales],
+    ['Net Purchase Value',netPurchases],
     ['Business Expenses',expenseTotal],
     ['Customer Outstanding',customerDue],
     ['Supplier Outstanding',supplierDue],
@@ -54,6 +62,10 @@ export default function Reports() {
         {[
           ['Sales invoices',sales.length],
           ['Purchase entries',purchases.length],
+          ['Sales returns',salesReturns.length],
+          ['Purchase returns',purchaseReturns.length],
+          ['Sales return value',money(salesReturnTotal)],
+          ['Purchase return value',money(purchaseReturnTotal)],
           ['Expense entries',expenses.length],
           ['Payment transactions',payments.length],
           ['Customer receipts',money(received)],

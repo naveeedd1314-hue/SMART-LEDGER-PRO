@@ -9,6 +9,7 @@ export default function Ledger() {
   const [sales, setSales] = useState<Row[]>([]);
   const [purchases, setPurchases] = useState<Row[]>([]);
   const [payments, setPayments] = useState<Row[]>([]);
+  const [returns, setReturns] = useState<Row[]>([]);
   const [customers, setCustomers] = useState<Row[]>([]);
   const [suppliers, setSuppliers] = useState<Row[]>([]);
 
@@ -22,6 +23,7 @@ export default function Ledger() {
     setSales(read('smartledger-pro-sales'));
     setPurchases(read('smartledger-pro-purchases'));
     setPayments(read('smartledger-pro-payments'));
+    setReturns(read('smartledger-pro-returns'));
     setCustomers(read('smartledger-pro-customers'));
     setSuppliers(read('smartledger-pro-suppliers'));
   }, []);
@@ -40,6 +42,10 @@ export default function Ledger() {
         date: x.date, description: `Receipt - ${x.method || 'Payment'}`,
         debit: 0, credit: Number(x.amount) || 0
       }));
+      returns.filter(x => x.type === 'Sales Return' && x.party === party).forEach(x => rows.push({
+        date: x.date, description: `Sales return - ${x.invoice || ''}`,
+        debit: 0, credit: Number(x.totalAmount ?? x.amount) || 0
+      }));
     } else {
       purchases.filter(x => x.supplier === party).forEach(x => rows.push({
         date: x.date, description: `Purchase invoice ${x.invoice || ''}`,
@@ -49,9 +55,13 @@ export default function Ledger() {
         date: x.date, description: `Payment - ${x.method || 'Payment'}`,
         debit: Number(x.amount) || 0, credit: 0
       }));
+      returns.filter(x => x.type === 'Purchase Return' && x.party === party).forEach(x => rows.push({
+        date: x.date, description: `Purchase return - Debit note ${x.debitNoteNo || ''}`,
+        debit: Number(x.totalAmount ?? x.amount) || 0, credit: 0
+      }));
     }
     return rows.sort((a,b) => a.date.localeCompare(b.date));
-  }, [type, party, sales, purchases, payments]);
+  }, [type, party, sales, purchases, payments, returns]);
 
   const opening = Number(selected?.opening) || 0;
   const debit = entries.reduce((s,x)=>s+x.debit,0);

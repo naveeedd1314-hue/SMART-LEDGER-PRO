@@ -14,26 +14,38 @@ const money = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDi
 export default function GST() {
   const [sales, setSales] = useState<Row[]>([])
   const [purchases, setPurchases] = useState<Row[]>([])
+  const [returns, setReturns] = useState<Row[]>([])
   const [settings, setSettings] = useState<Row>({})
 
   useEffect(() => {
     setSales(read('smartledger-pro-sales'))
     setPurchases(read('smartledger-pro-purchases'))
+    setReturns(read('smartledger-pro-returns'))
     try {
       setSettings(JSON.parse(localStorage.getItem('smartledger-pro-settings') || '{}'))
     } catch {}
   }, [])
 
-  const outputTax = sales.reduce((s, x) => s + (Number(x.taxAmount) || 0), 0)
-  const inputTax = purchases.reduce((s, x) => s + (Number(x.taxAmount) || 0), 0)
-  const cgstOut = sales.reduce((s, x) => s + (Number(x.cgst) || 0), 0)
-  const sgstOut = sales.reduce((s, x) => s + (Number(x.sgst) || 0), 0)
-  const igstOut = sales.reduce((s, x) => s + (Number(x.igst) || 0), 0)
-  const utgstOut = sales.reduce((s, x) => s + (Number(x.utgst) || 0), 0)
-  const cgstIn = purchases.reduce((s, x) => s + (Number(x.cgst) || 0), 0)
-  const sgstIn = purchases.reduce((s, x) => s + (Number(x.sgst) || 0), 0)
-  const igstIn = purchases.reduce((s, x) => s + (Number(x.igst) || 0), 0)
-  const utgstIn = purchases.reduce((s, x) => s + (Number(x.utgst) || 0), 0)
+  const salesReturnTax = returns.filter(x => x.type === 'Sales Return').reduce((s, x) => s + (Number(x.taxAmount) || 0), 0)
+  const purchaseReturnTax = returns.filter(x => x.type === 'Purchase Return').reduce((s, x) => s + (Number(x.taxAmount) || 0), 0)
+  const outputTax = Math.max(0, sales.reduce((s, x) => s + (Number(x.taxAmount) || 0), 0) - salesReturnTax)
+  const inputTax = Math.max(0, purchases.reduce((s, x) => s + (Number(x.taxAmount) || 0), 0) - purchaseReturnTax)
+  const salesReturnCgst = returns.filter(x => x.type === 'Sales Return').reduce((s, x) => s + (Number(x.cgst) || 0), 0)
+  const salesReturnSgst = returns.filter(x => x.type === 'Sales Return').reduce((s, x) => s + (Number(x.sgst) || 0), 0)
+  const salesReturnUtgst = returns.filter(x => x.type === 'Sales Return').reduce((s, x) => s + (Number(x.utgst) || 0), 0)
+  const salesReturnIgst = returns.filter(x => x.type === 'Sales Return').reduce((s, x) => s + (Number(x.igst) || 0), 0)
+  const purchaseReturnCgst = returns.filter(x => x.type === 'Purchase Return').reduce((s, x) => s + (Number(x.cgst) || 0), 0)
+  const purchaseReturnSgst = returns.filter(x => x.type === 'Purchase Return').reduce((s, x) => s + (Number(x.sgst) || 0), 0)
+  const purchaseReturnUtgst = returns.filter(x => x.type === 'Purchase Return').reduce((s, x) => s + (Number(x.utgst) || 0), 0)
+  const purchaseReturnIgst = returns.filter(x => x.type === 'Purchase Return').reduce((s, x) => s + (Number(x.igst) || 0), 0)
+  const cgstOut = sales.reduce((s, x) => s + (Number(x.cgst) || 0), 0) - salesReturnCgst
+  const sgstOut = sales.reduce((s, x) => s + (Number(x.sgst) || 0), 0) - salesReturnSgst
+  const igstOut = sales.reduce((s, x) => s + (Number(x.igst) || 0), 0) - salesReturnIgst
+  const utgstOut = sales.reduce((s, x) => s + (Number(x.utgst) || 0), 0) - salesReturnUtgst
+  const cgstIn = purchases.reduce((s, x) => s + (Number(x.cgst) || 0), 0) - purchaseReturnCgst
+  const sgstIn = purchases.reduce((s, x) => s + (Number(x.sgst) || 0), 0) - purchaseReturnSgst
+  const igstIn = purchases.reduce((s, x) => s + (Number(x.igst) || 0), 0) - purchaseReturnIgst
+  const utgstIn = purchases.reduce((s, x) => s + (Number(x.utgst) || 0), 0) - purchaseReturnUtgst
   const taxableSales = sales.reduce((s, x) => s + (Number(x.taxableValue) || 0), 0)
   const taxablePurchases = purchases.reduce((s, x) => s + (Number(x.taxableValue) || 0), 0)
   const missingSales = sales.filter(x => x.taxAmount === undefined).length
@@ -44,7 +56,9 @@ export default function GST() {
     ['Input GST (Purchases)', inputTax],
     ['Estimated Net GST', outputTax - inputTax],
     ['Taxable Sales', taxableSales],
-    ['Taxable Purchases', taxablePurchases]
+    ['Taxable Purchases', taxablePurchases],
+    ['Sales Return GST Reversal', salesReturnTax],
+    ['Purchase Return GST Reversal', purchaseReturnTax]
   ]
 
   return <section className="space-y-5">
