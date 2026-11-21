@@ -19,6 +19,8 @@ type Adjustment = {
   product: string
   change: number
   reason: string
+  movement?: 'Stock In' | 'Stock Out' | 'Correction'
+  stockAfter?: number
 }
 
 const read = <T,>(key: string): T[] => {
@@ -102,6 +104,17 @@ export default function Inventory() {
       stock: Number(qty)
     }]
     saveItems(next)
+    if (Number(qty) > 0) {
+      saveAdjustments([{
+        id: crypto.randomUUID(),
+        date: new Date().toISOString().slice(0, 10),
+        product: name.trim(),
+        change: Number(qty),
+        reason: 'Opening stock',
+        movement: 'Stock In',
+        stockAfter: Number(qty)
+      }, ...adjustments])
+    }
     setName('')
     setSku('')
     setHsn('')
@@ -133,6 +146,9 @@ export default function Inventory() {
       date: new Date().toISOString().slice(0, 10),
       product: product.name,
       change,
+ movement: change > 0 ? 'Stock In' : 'Stock Out',
+ stockAfter: Number(product.stock) + change,
+ 
       reason: reason.trim() || 'Stock correction'
     }, ...adjustments])
 
@@ -266,12 +282,25 @@ export default function Inventory() {
         <h2 className="mb-3 text-lg font-semibold">Recent Stock Adjustments</h2>
         {adjustments.length ? <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead><tr className="border-b text-gray-500"><th className="p-2">Date</th><th className="p-2">Product</th><th className="p-2">Change</th><th className="p-2">Reason</th></tr></thead>
-            <tbody>{adjustments.slice(0, 20).map(x => <tr key={x.id} className="border-b">
-              <td className="p-2">{x.date}</td><td className="p-2">{x.product}</td>
-              <td className={`p-2 font-semibold ${x.change > 0 ? 'text-green-800' : 'text-red-700'}`}>{x.change > 0 ? '+' : ''}{x.change}</td>
-              <td className="p-2">{x.reason}</td>
-            </tr>)}</tbody>
+            <thead><tr className="border-b text-gray-500">
+              <th className="p-2">Date</th>
+              <th className="p-2">Product</th>
+              <th className="p-2">Movement</th>
+              <th className="p-2">Qty Change</th>
+              <th className="p-2">Stock After</th>
+              <th className="p-2">Reason</th>
+            </tr></thead>
+            <tbody>{adjustments.slice(0, 50).map(x => {
+              const movement = x.movement || (x.change > 0 ? 'Stock In' : 'Stock Out')
+              return <tr key={x.id} className="border-b">
+                <td className="p-2">{x.date}</td>
+                <td className="p-2">{x.product}</td>
+                <td className="p-2">{movement}</td>
+                <td className={`p-2 font-semibold ${x.change > 0 ? 'text-green-800' : 'text-red-700'}`}>{x.change > 0 ? '+' : ''}{x.change}</td>
+                <td className="p-2">{x.stockAfter ?? '—'}</td>
+                <td className="p-2">{x.reason}</td>
+              </tr>
+            })}</tbody>
           </table>
         </div> : <p className="py-4 text-sm text-gray-500">No stock adjustments recorded.</p>}
       </div>
